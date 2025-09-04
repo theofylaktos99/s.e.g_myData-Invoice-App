@@ -1,0 +1,13 @@
+{
+  "name": "italiancorner-invoice-app",
+  "version": "1.0.0",
+  "description": "Italian Corner Invoice Management System",
+  "main": "frontend-server.js",
+  "scripts": {
+    "start": "node frontend-server.js",
+    "backend": "node backendaade/aade-backend-stub.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

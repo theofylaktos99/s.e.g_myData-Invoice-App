@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Italian Corner - Invoice App</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="pdfGenerator.js"></script>
+    <style>
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+        [type="number"] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+        [type="number"]::-webkit-outer-spin-button,
+        [type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            appearance: none;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel" src="frontendmock.jsx"></script>
+    <script type="text/babel">
+        // Wait for all libraries to load
+        function initializeApp() {
+            console.log('Checking libraries...');
+            console.log('React:', typeof React);
+            console.log('ReactDOM:', typeof ReactDOM);
+            console.log('jsPDF:', typeof window.jsPDF, typeof window.jspdf);
+            
+            const { createRoot } = ReactDOM;
+            const root = createRoot(document.getElementById('root'));
+            root.render(React.createElement(InvoiceAppMock));
+        }
+        
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeApp);
+        } else {
+            initializeApp();
+        }
+    </script>
+</body>
+</html>
