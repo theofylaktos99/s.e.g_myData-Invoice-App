@@ -3,11 +3,26 @@
   "version": "1.0.0",
   "description": "Italian Corner Invoice Management System",
   "main": "frontend-server.js",
+  "type": "module",
   "scripts": {
     "start": "node frontend-server.js",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "backend": "node backendaade/aade-backend-stub.js"
   },
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.16",
+    "@vitejs/plugin-react": "^5.1.0",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.16",
+    "vite": "^7.1.12"
   }
 }

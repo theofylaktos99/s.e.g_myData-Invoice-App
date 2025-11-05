@@ -77,16 +77,34 @@ italiancorner_invoice_app/
 
 ### Running the Application
 
-#### Start Frontend Server
+#### Development Mode
+```bash
+npm run dev
+# Starts Vite development server on http://localhost:8080 with hot reload
+```
+
+#### Production Build
+```bash
+npm run build
+# Creates optimized production bundle in dist/ folder
+```
+
+#### Start Production Server
 ```bash
 npm start
-# Starts frontend server on http://localhost:8080
+# Starts frontend server on http://localhost:8080 serving built files
 ```
 
 #### Start Backend API (Optional)
 ```bash
 npm run backend
 # Starts mock AADE backend on http://localhost:3000
+```
+
+#### Preview Built Application
+```bash
+npm run preview
+# Preview the built application locally
 ```
 
 #### Access the Application
