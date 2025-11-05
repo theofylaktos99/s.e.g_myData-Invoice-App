@@ -425,7 +425,7 @@ async function generateInvoiceQRCode(invoice, branchInfo) {
   }
 }
 
-function downloadInvoicePDF(invoice, branches, logoPath = '/assets/italiancornerDesktop App Icon.png') {
+function downloadInvoicePDF(invoice, branches, logoPath = `${import.meta.env.BASE_URL || '/'}assets/italiancornerDesktop App Icon.png`) {
   // Check if PDFMake is available
   if (typeof pdfMake === 'undefined') {
     alert('Η βιβλιοθήκη PDFMake δεν είναι διαθέσιμη. Παρακαλώ φορτώστε τη σελίδα ξανά.');
@@ -453,7 +453,7 @@ function downloadInvoicePDF(invoice, branches, logoPath = '/assets/italiancorner
  * @param {Object} branches - All branch configurations
  * @param {string} logoPath - Path to logo image (optional)
  */
-function openInvoicePDF(invoice, branches, logoPath = '/assets/italiancornerDesktop App Icon.png') {
+function openInvoicePDF(invoice, branches, logoPath = `${import.meta.env.BASE_URL || '/'}assets/italiancornerDesktop App Icon.png`) {
   if (typeof pdfMake === 'undefined') {
     alert('Η βιβλιοθήκη PDFMake δεν είναι διαθέσιμη. Παρακαλώ φορτώστε τη σελίδα ξανά.');
     return;
@@ -473,7 +473,7 @@ function openInvoicePDF(invoice, branches, logoPath = '/assets/italiancornerDesk
   });
 }
 
-function generateInvoicePDFBlob(invoice, branches, logoPath = '/assets/italiancornerDesktop App Icon.png') {
+function generateInvoicePDFBlob(invoice, branches, logoPath = `${import.meta.env.BASE_URL || '/'}assets/italiancornerDesktop App Icon.png`) {
   return new Promise((resolve, reject) => {
     if (typeof pdfMake === 'undefined') {
       reject(new Error('Η βιβλιοθήκη PDFMake δεν είναι διαθέσιμη.'));
@@ -589,7 +589,7 @@ function createThermalReceiptDefinition(invoice, branchInfo, logoBase64, options
   return docDefinition;
 }
 
-function downloadThermalReceiptPDF(invoice, branches, logoPath = '/assets/italiancornerDesktop App Icon.png', options = {}) {
+function downloadThermalReceiptPDF(invoice, branches, logoPath = `${import.meta.env.BASE_URL || '/'}assets/italiancornerDesktop App Icon.png`, options = {}) {
   if (typeof pdfMake === 'undefined') {
     alert('Η βιβλιοθήκη PDFMake δεν είναι διαθέσιμη.');
     return;
@@ -607,7 +607,7 @@ function downloadThermalReceiptPDF(invoice, branches, logoPath = '/assets/italia
   });
 }
 
-function generateThermalReceiptPDFBlob(invoice, branches, logoPath = '/assets/italiancornerDesktop App Icon.png', options = {}) {
+function generateThermalReceiptPDFBlob(invoice, branches, logoPath = `${import.meta.env.BASE_URL || '/'}assets/italiancornerDesktop App Icon.png`, options = {}) {
   return new Promise((resolve, reject) => {
     if (typeof pdfMake === 'undefined') {
       reject(new Error('pdfMake unavailable'));

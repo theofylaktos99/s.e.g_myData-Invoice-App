@@ -283,14 +283,15 @@ function InvoiceAppMock() {
   const [failedQueue, setFailedQueue] = useState(() => {
     try { return JSON.parse(localStorage.getItem('aade_failed_queue') || '[]'); } catch { return []; }
   });
-  const [logoUrl, setLogoUrl] = useState('/assets/italiancornerDesktop App Icon.png');
+  const BASE = import.meta.env.BASE_URL || '/';
+  const [logoUrl, setLogoUrl] = useState(`${BASE}assets/italiancornerDesktop App Icon.png`);
   const dynamicLogoUrl = useMemo(() => {
     const logoMap = {
-      central: '/assets/italian_corner.png',
-      villa1: '/assets/villa_alexandros.png',
-      villa2: '/assets/villa_3as.png',
+      central: `${BASE}assets/italian_corner.png`,
+      villa1: `${BASE}assets/villa_alexandros.png`,
+      villa2: `${BASE}assets/villa_3as.png`,
     };
-    return logoMap[branch] || '/assets/italiancornerDesktop App Icon.png';
+    return logoMap[branch] || `${BASE}assets/italiancornerDesktop App Icon.png`;
   }, [branch]);
   const [customers, setCustomers] = useState(() => {
     try { return JSON.parse(localStorage.getItem(storageKeyCustomers('central')) || '[]'); } catch { return []; }
