@@ -298,8 +298,9 @@ function InvoiceAppMock() {
   const [history, setHistory] = useState(() => {
     try { return JSON.parse(localStorage.getItem(storageKeyHistory()) || '[]'); } catch { return []; }
   });
-  const [useBackend, setUseBackend] = useState(true);
-  const [backendBase, setBackendBase] = useState('http://localhost:3000');
+  // Default to backend in local dev, mock in production/live
+  const [useBackend, setUseBackend] = useState(() => (location.hostname === 'localhost' || location.hostname === '127.0.0.1'));
+  const [backendBase, setBackendBase] = useState(() => (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:3000' : '');
   const [pdfPreviewState, setPdfPreviewState] = useState({ open: false, url: null, blob: null, fileName: '' });
   const totals = useMemo(() => calcTotals(items), [items]);
   const isVilla = branch === 'villa1' || branch === 'villa2';
