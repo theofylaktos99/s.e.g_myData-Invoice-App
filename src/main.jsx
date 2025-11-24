@@ -13,86 +13,29 @@ import ItemsTable from './components/ItemsTable.jsx';
 import TotalsPanel from './components/TotalsPanel.jsx';
 import FailedSubmissions from './components/FailedSubmissions.jsx';
 import HistoryTable from './components/HistoryTable.jsx';
+import TrashBin from './components/TrashBin.jsx';
+import DateSettings from './components/DateSettings.jsx';
 import BackendControls from './components/BackendControls.jsx';
-import TestsPanel from './components/TestsPanel.jsx';
-import DashboardSummary from './components/DashboardSummary.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
 import PDFPreviewModal from './components/PDFPreviewModal.jsx';
+import ExperienceRibbon from './components/ExperienceRibbon.jsx';
+import PrinterSettings from './components/PrinterSettings.jsx';
+import { DocumentStackIcon, CheckCircleIcon, HistoryIcon, WarningIcon } from './components/icons.jsx';
+import { BRANCHES } from './branches/index.js';
 
-const BRANCHES = {
-  central: {
-    id: 'central',
-    label: 'Italian Corner - Meeting Point',
-    series: 'I-REST',
-    revenueMapping: {
-      documentType: '1.1',
-      revenueCategory: 'RESTAURANT_SERVICES',
-      defaultVat: 13,
-      allowedVatRates: [13, 24],
-      vatMap: { 13: 'VAT_13', 24: 'VAT_24', 0: 'VAT_0' },
-      e3: { code: 'E3_RESTAURANT' },
-      e3Surcharge: { code: 'E3_SURCHARGE' },
-    },
-    issuer: {
-      name: "ITALIAN CORNER 'meeting point'",
-      vat: '099999999',
-      address: 'Μάρκου Πορτάλιου 25',
-      city: 'Ρέθυμνο',
-      zip: '74100',
-      phone: '+302831020010',
-    },
-  },
-  villa1: {
-    id: 'villa1',
-    label: 'Villa Alexandros',
-    series: 'I-VILLA1',
-    revenueMapping: {
-      documentType: '1.1',
-      revenueCategory: 'ACCOMMODATION',
-      defaultVat: 13,
-      allowedVatRates: [13, 24],
-      vatMap: { 13: 'VAT_13', 24: 'VAT_24', 0: 'VAT_0' },
-      e3: { code: 'E3_ACCOMMODATION' },
-      e3Surcharge: { code: 'E3_SURCHARGE' },
-      // Auto surcharge calculation rule: TAAK (seasonal per-night)
-      // Summer (Apr-Oct): 8€/night, Winter (Nov-Mar): 2€/night
-      surchargeRule: { mode: 'seasonalPerNight', summerRate: 8, winterRate: 2 },
-    },
-    issuer: {
-      name: 'Villa Alexandros OE',
-      vat: '088888888',
-      address: 'Eparchiaki Odos Viran Episkopis-Monis Arkadiou 35',
-      city: 'Σκουλούφια',
-      zip: '74052',
-      phone: '',
-    },
-  },
-  villa2: {
-    id: 'villa2',
-    label: "3A's Family Luxury Villa",
-    series: 'I-VILLA2',
-    revenueMapping: {
-      documentType: '1.1',
-      revenueCategory: 'ACCOMMODATION',
-      defaultVat: 13,
-      allowedVatRates: [13, 24],
-      vatMap: { 13: 'VAT_13', 24: 'VAT_24', 0: 'VAT_0' },
-      e3: { code: 'E3_ACCOMMODATION' },
-      e3Surcharge: { code: 'E3_SURCHARGE' },
-      // Same TAAK seasonal rule for this villa
-      surchargeRule: { mode: 'seasonalPerNight', summerRate: 8, winterRate: 2 },
-    },
-    issuer: {
-      name: "3A's Family Luxury Villa OE",
-      vat: '077777777',
-      address: 'Akadimias Vivi, 39',
-      city: 'Ρέθυμνο Πόλη',
-      zip: '74150',
-      phone: '',
-    },
-  },
+// Default descriptions per branch
+const DEFAULT_RESTAURANT_DESC = 'Γεύμα/Δείπνο';
+const DEFAULT_VILLA_DESC = 'Παροχή υπηρεσιών βραχυχρόνιας μίσθωσης τουριστικού καταλύματος (βίλα)';
+const RESTAURANT_BRANCH_IDS = ['central', 'kandavlos'];
+const VILLA_BRANCH_IDS = ['villa1', 'villa2'];
+
+const getDefaultDescriptionForBranch = (branchId) => {
+  if (RESTAURANT_BRANCH_IDS.includes(branchId)) return DEFAULT_RESTAURANT_DESC;
+  if (VILLA_BRANCH_IDS.includes(branchId)) return DEFAULT_VILLA_DESC;
+  return '';
 };
 
+// BRANCHES moved to src/branches
 function validateInvoiceForAADE(invoice, branchCfg) {
   const errors = [];
   if (!invoice.invoiceNumber) errors.push('Αριθμός τιμολογίου είναι υποχρεωτικός.');
@@ -131,14 +74,20 @@ function buildMyDataPayload(invoice, branchCfg, opts = {}) {
     paymentMethod: invoice.paymentMethod || 'cash',
   };
   const baseLines = (invoice.items || []).map((it, idx) => {
-    const net = it.qty * it.price;
-    const vatAmt = net * (it.vatRate / 100);
+    // Treat UI price as VAT-inclusive (gross)
+    const qty = Number(it.qty || 0);
+    const grossUnit = Number(it.price || 0);
+    const rate = Number(it.vatRate || 0);
+    const factor = 1 + (rate / 100);
+    const lineGross = qty * grossUnit;
+    const lineNet = factor > 0 ? lineGross / factor : lineGross;
+    const vatAmt = lineGross - lineNet;
     return {
       lineNumber: idx + 1,
       description: it.description,
-      qty: it.qty,
-      unitPrice: it.price,
-      netAmount: round2(net),
+      qty: qty,
+      unitPrice: grossUnit,
+      netAmount: round2(lineNet),
       vatCategory: vatMap[it.vatRate] || `${it.vatRate}%`,
       vatAmount: round2(vatAmt),
       revenueClassification: e3Map.code || branchCfg.revenueMapping.revenueCategory,
@@ -154,7 +103,7 @@ function buildMyDataPayload(invoice, branchCfg, opts = {}) {
     if (surcharge > 0) {
       lines.push({
         lineNumber: baseLines.length + 1,
-        description: 'Τέλος Ανθεκτικότητας (TAAK)',
+  description: 'Τέλος Ανθεκτικότητας στην Κλιματική Κρίση (ΤΑΚΚ)',
         qty: 1,
         unitPrice: round2(surcharge),
         netAmount: round2(surcharge),
@@ -171,7 +120,7 @@ function buildMyDataPayload(invoice, branchCfg, opts = {}) {
     // μόνο γραμμή surcharge
     lines = surcharge > 0 ? [{
       lineNumber: 1,
-      description: 'Τέλος Ανθεκτικότητας (TAAK)',
+  description: 'Τέλος Ανθεκτικότητας στην Κλιματική Κρίση (ΤΑΚΚ)',
       qty: 1,
       unitPrice: round2(surcharge),
       netAmount: round2(surcharge),
@@ -198,8 +147,20 @@ function buildMyDataPayload(invoice, branchCfg, opts = {}) {
 }
 
 function calcTotals(items) {
-  const net = items.reduce((s, i) => s + i.qty * i.price, 0);
-  const vat = items.reduce((s, i) => s + i.qty * i.price * (i.vatRate / 100), 0);
+  // Prices entered in UI are VAT-inclusive (gross)
+  let net = 0;
+  let vat = 0;
+  for (const i of items) {
+    const qty = Number(i.qty || 0);
+    const grossUnit = Number(i.price || 0);
+    const rate = Number(i.vatRate || 0);
+    const factor = 1 + (rate / 100);
+    const lineGross = qty * grossUnit;
+    const lineNet = factor > 0 ? lineGross / factor : lineGross;
+    const lineVat = lineGross - lineNet;
+    net += lineNet;
+    vat += lineVat;
+  }
   return { net, vat };
 }
 
@@ -207,13 +168,7 @@ function round2(n) {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 }
 
-async function submitToAADEMock(payload) {
-  await new Promise((r) => setTimeout(r, 650));
-  const fail = Math.random() < 0.35 || String(payload?.header?.counterparty?.vat || '').toUpperCase().includes('FAIL');
-  if (fail) return { ok: false, error: 'Αποτυχία επικοινωνίας με AADE (mock).' };
-  const mark = `MARK-${Date.now()}`;
-  return { ok: true, mark };
-}
+// NOTE: mock submission removed for production readiness. All submissions go through configured backend.
 
 function storageKeyCustomers(branchId){
   return `customers_${branchId}`;
@@ -221,6 +176,10 @@ function storageKeyCustomers(branchId){
 
 function storageKeyHistory(){
   return 'invoices_history';
+}
+
+function storageKeyTrash(){
+  return 'invoice_trash_bin';
 }
 
 function invoiceSequenceKey(branchId) {
@@ -235,6 +194,10 @@ function parseInvoiceSequence(value) {
 function computeHighestSequenceFromHistory(branchId, historyList) {
   return historyList.reduce((max, entry) => {
     if (entry.branchId !== branchId) return max;
+    // Only count successfully submitted invoices (status: 'sent')
+    // Fallback for old data without status field: assume 'sent' (backward compatibility)
+    const entryStatus = entry.status || 'sent';
+    if (entryStatus !== 'sent') return max;
     const seq = parseInvoiceSequence(entry.invoiceNumber);
     return seq !== null && seq > max ? seq : max;
   }, 0);
@@ -262,17 +225,24 @@ function commitInvoiceSequence(branchId, invoiceNumber) {
   }
 }
 
-function InvoiceAppMock() {
+function InvoiceApp() {
   // Navigation state
   const [activeSection, setActiveSection] = useState('invoice');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('ui_sidebar_collapsed') === '1'; } catch { return false; }
+  });
+
+  useEffect(() => { try { localStorage.setItem('ui_sidebar_collapsed', sidebarCollapsed ? '1' : '0'); } catch {} }, [sidebarCollapsed]);
   
   // State management
   const [branch, setBranch] = useState('central');
   const branchCfg = useMemo(() => BRANCHES[branch], [branch]);
   const [customer, setCustomer] = useState({ name: '', vat: '', email: '', address: '', city: '' });
-  const [items, setItems] = useState([{ description: '', qty: 1, price: 0, vatRate: 13 }]);
+  // Initial branch is 'central' (Italian Corner) so prefill default description
+  const [items, setItems] = useState([{ description: getDefaultDescriptionForBranch('central'), qty: 1, price: 0, vatRate: 13 }]);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().substring(0, 10));
+  const [invoiceTime, setInvoiceTime] = useState(new Date().toTimeString().substring(0, 5));
   const [invoiceNumber, setInvoiceNumber] = useState('0001');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [surcharge, setSurcharge] = useState(0);
@@ -283,28 +253,374 @@ function InvoiceAppMock() {
   const [failedQueue, setFailedQueue] = useState(() => {
     try { return JSON.parse(localStorage.getItem('aade_failed_queue') || '[]'); } catch { return []; }
   });
-  const BASE = import.meta.env.BASE_URL || '/';
-  const [logoUrl, setLogoUrl] = useState(`${BASE}assets/italiancornerDesktop App Icon.png`);
-  const dynamicLogoUrl = useMemo(() => {
-    const logoMap = {
-      central: `${BASE}assets/italian_corner.png`,
-      villa1: `${BASE}assets/villa_alexandros.png`,
-      villa2: `${BASE}assets/villa_3as.png`,
-    };
-    return logoMap[branch] || `${BASE}assets/italiancornerDesktop App Icon.png`;
-  }, [branch]);
   const [customers, setCustomers] = useState(() => {
     try { return JSON.parse(localStorage.getItem(storageKeyCustomers('central')) || '[]'); } catch { return []; }
   });
   const [history, setHistory] = useState(() => {
     try { return JSON.parse(localStorage.getItem(storageKeyHistory()) || '[]'); } catch { return []; }
   });
-  // Default to backend in local dev, mock in production/live
-  const [useBackend, setUseBackend] = useState(() => (location.hostname === 'localhost' || location.hostname === '127.0.0.1'));
-  const [backendBase, setBackendBase] = useState(() => (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:3000' : '');
+  const [trash, setTrash] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(storageKeyTrash()) || '[]'); } catch { return []; }
+  });
+  const [dateFormat, setDateFormat] = useState(() => {
+    try { return localStorage.getItem('app_date_format') || 'DD-MM-YYYY'; } catch { return 'DD-MM-YYYY'; }
+  });
+  const persistDateFormat = (fmt) => { setDateFormat(fmt); try { localStorage.setItem('app_date_format', fmt); } catch {} };
+  // Backend is always enabled in production-ready app runs.
+  // Keep this a simple boolean flag (no runtime toggle persisted anymore).
+  const useBackend = true;
+  
+  // Helper: validate and correct backend URL
+  const validateBackendUrl = (url) => {
+    if (!url) return 'http://127.0.0.1:3000';
+    // If user accidentally enters AADE URL, auto-correct to localhost
+    if (url.includes('mydatapi.aade.gr') || url.includes('mydataapidev.aade.gr')) {
+      console.warn('Invalid backend URL detected (AADE endpoint). Auto-correcting to localhost:3000');
+      return 'http://127.0.0.1:3000';
+    }
+    // Clean up trailing slashes
+    return url.replace(/\/$/, '');
+  };
+  
+  const [backendBase, setBackendBase] = useState(() => {
+    try { 
+      const stored = localStorage.getItem('app_backend_base'); 
+      if (stored !== null && stored !== '') return validateBackendUrl(stored);
+    } catch {}
+    // Default: assume backend is running locally on port 3000
+    // This works for both localhost web and Electron desktop app
+    return 'http://127.0.0.1:3000';
+  });
+  
+  // Wrapper for setBackendBase that validates input
+  const setBackendBaseValidated = (url) => {
+    const validated = validateBackendUrl(url);
+    setBackendBase(validated);
+  };
+  
+  // Persist environment/backend base URL locally
+  useEffect(() => { try { localStorage.setItem('app_backend_base', backendBase || ''); } catch {} }, [backendBase]);
+  // AADE / Backend credentials and environment (stored locally on client machine)
+  const [aadeEnv, setAadeEnv] = useState(() => {
+    try {
+      const stored = localStorage.getItem('aade_env');
+      if (stored === 'sandbox') return 'preproduction';
+      if (stored === 'production' || stored === 'preproduction') return stored;
+      return stored || 'production';
+    } catch {
+      return 'production';
+    }
+  });
+  const [aadeClientId, setAadeClientId] = useState(() => { try { return localStorage.getItem('aade_client_id') || 'mydata'; } catch { return 'mydata'; } });
+  const [aadeClientSecret, setAadeClientSecret] = useState(() => { try { return localStorage.getItem('aade_client_secret') || 'mydata'; } catch { return 'mydata'; } });
+  const [aadeApiKey, setAadeApiKey] = useState(() => { try { return localStorage.getItem('aade_api_key') || ''; } catch { return ''; } });
+  const [aadeSubscriptionKey, setAadeSubscriptionKey] = useState(() => { try { return localStorage.getItem('aade_subscription_key') || ''; } catch { return ''; } });
+  const [aadeTaxisnetUsername, setAadeTaxisnetUsername] = useState(() => { try { return localStorage.getItem('aade_taxisnet_username') || ''; } catch { return ''; } });
+  const [aadeTaxisnetPassword, setAadeTaxisnetPassword] = useState(() => { try { return localStorage.getItem('aade_taxisnet_password') || ''; } catch { return ''; } });
+  const [aadeBearerToken, setAadeBearerToken] = useState(() => { try { return localStorage.getItem('aade_bearer_token') || ''; } catch { return ''; } });
+  const [aadeBearerTokenExpiry, setAadeBearerTokenExpiry] = useState(() => { try { return parseInt(localStorage.getItem('aade_bearer_token_expiry')) || 0; } catch { return 0; } });
+  const [aadeCertPath, setAadeCertPath] = useState(() => { try { return localStorage.getItem('aade_cert_path') || ''; } catch { return ''; } });
+  const [aadeCertPassword, setAadeCertPassword] = useState(() => { try { return localStorage.getItem('aade_cert_password') || ''; } catch { return ''; } });
+  const [gsisUsername, setGsisUsername] = useState(() => { try { return localStorage.getItem('gsis_username') || ''; } catch { return ''; } });
+  const [gsisPassword, setGsisPassword] = useState(() => { try { return localStorage.getItem('gsis_password') || ''; } catch { return ''; } });
+  const [connectionStatus, setConnectionStatus] = useState({ state: 'idle', message: 'Δεν έχει εκτελεστεί έλεγχος σύνδεσης.' });
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+  
+  // Update window object with GSIS credentials whenever they change
+  useEffect(() => {
+    try {
+      if (gsisUsername) window.gsisUsername = gsisUsername;
+      if (gsisPassword) window.gsisPassword = gsisPassword;
+    } catch (e) {
+      console.log('GSIS credentials set to window object.');
+    }
+  }, [gsisUsername, gsisPassword]);
+  
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+  const timezoneLabel = useMemo(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Athens';
+    } catch {
+      return 'Europe/Athens';
+    }
+  }, []);
+
+  // OAuth Bearer Token Request (cached with expiry) — via local backend proxy
+  // AADE uses direct header authentication - no token exchange needed
+  // Just pass aade-user-id and ocp-apim-subscription-key headers with each request
+
+  const handleConnectionTest = async () => {
+    if (!backendBase) {
+      setConnectionStatus({ state: 'error', message: 'Ορίστε τη διεύθυνση του backend πριν τον έλεγχο.' });
+      return;
+    }
+
+    const normalizedBase = backendBase.replace(/\/$/, '');
+    const endpoint = `${normalizedBase}/api/aade/validate`;
+    setIsTestingConnection(true);
+    setConnectionStatus({ state: 'pending', message: 'Εκτελείται δοκιμαστική κλήση προς myDATA…' });
+
+    const invoicePayload = {
+      header: {
+        aa: 'HEALTH-CHECK',
+        issueDate: new Date().toISOString().slice(0, 10),
+        counterparty: { name: 'Health Check', vat: '000000000' },
+      },
+      lines: [{ lineNumber: 1, description: 'Ping', qty: 1, unitPrice: 1, vatCategory: 'VAT_24', vatAmount: 0 }],
+      meta: { env: aadeEnv },
+    };
+
+    try {
+      // Send credentials in request body (same format as serverValidate)
+      const body = {
+        aadeUserId: aadeTaxisnetUsername,
+        subscriptionKey: aadeSubscriptionKey,
+        invoicePayload,
+      };
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (data?.ok) {
+        setConnectionStatus({ state: 'success', message: 'Η σύνδεση επιβεβαιώθηκε. Το backend έφτασε στο myDATA.' });
+      } else {
+        setConnectionStatus({ state: 'error', message: data?.error || 'Αποτυχία επικύρωσης από το backend.' });
+      }
+    } catch (error) {
+      setConnectionStatus({ state: 'error', message: error?.message || 'Αποτυχία επικοινωνίας με το backend.' });
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    // Call the connection test to update status
+    if (!backendBase) {
+      console.warn('Backend not configured, skipping health check');
+      setTimeout(() => window.location.reload(), 300);
+      return;
+    }
+
+    const normalizedBase = backendBase.replace(/\/$/, '');
+    const endpoint = `${normalizedBase}/api/nodes`;
+
+    try {
+      const response = await fetch(endpoint, { method: 'GET' });
+      if (response.ok) {
+        console.log('✅ Backend health check passed');
+        setConnectionStatus({ state: 'success', message: 'Σύνδεση backend εναργή.' });
+      } else {
+        console.warn('⚠️ Backend returned non-ok status');
+        setConnectionStatus({ state: 'error', message: 'Το backend δεν ανταποκρίνεται σωστά.' });
+      }
+    } catch (err) {
+      console.warn('⚠️ Backend not reachable:', err);
+      setConnectionStatus({ state: 'error', message: 'Το backend δεν είναι διαθέσιμο.' });
+    } finally {
+      // Always reload after 500ms to let UI update
+      setTimeout(() => window.location.reload(), 500);
+    }
+  };
+
+  const handleCheckUpdate = async () => {
+    try {
+      // Check if we're in Electron environment
+      if (!window.__TAURI__ && !window.electron) {
+        // Web app - check backend for update availability
+        if (!backendBase) {
+          window.alert('⚠️ Δεν υπάρχει σύνδεση με backend');
+          return;
+        }
+
+        const normalizedBase = backendBase.replace(/\/$/, '');
+        const response = await fetch(`${normalizedBase}/api/update/check`, { method: 'GET' });
+        const result = await response.json();
+
+        if (result.data?.available) {
+          window.alert(`✅ Νέα έκδοση διαθέσιμη: v${result.data.version}\n\nΑναβαθμίστε τη σελίδα για να λάβετε την ενημέρωση`);
+        } else {
+          window.alert('✅ Χρησιμοποιείτε την τελευταία έκδοση');
+        }
+        return;
+      }
+
+      // Electron app - use electron-updater via IPC
+      const { ipcRenderer } = window.electron || {};
+      if (!ipcRenderer) {
+        console.warn('IPC not available');
+        return;
+      }
+
+      const result = await ipcRenderer.invoke('updater:check-for-updates');
+      
+      if (result.available) {
+        window.alert(`✅ Νέα έκδοση διαθέσιμη: v${result.version}\n\nΗ εφαρμογή θα ενημερωθεί αυτόματα κατά το επόμενο ξεκίνημα`);
+      } else if (result.error) {
+        window.alert(`⚠️ Δεν ήταν δυνατή η έλεγχος για ενημερώσεις: ${result.error}`);
+      } else {
+        window.alert('✅ Χρησιμοποιείτε την τελευταία έκδοση');
+      }
+    } catch (err) {
+      console.error('Update check failed:', err);
+      window.alert(`❌ Σφάλμα ελέγχου ενημερώσεων: ${err.message}`);
+    }
+  };
+
+  const handleCancelInvoice = async (entry) => {
+    // Show confirmation dialog with reason selection
+    const reasonOptions = [
+      { code: '1', label: 'Δεν είναι χρήσιμο πλέον' },
+      { code: '2', label: 'Διπλότυπο' },
+      { code: '3', label: 'Σφάλμα δεδομένων' },
+      { code: '4', label: 'Λάθος πελάτης' },
+    ];
+
+    let selectedReason = null;
+    const reasonPrompt = reasonOptions.map(r => `${r.code}. ${r.label}`).join('\n');
+    const userInput = window.prompt(
+      `⚠️ ΠΡΟΣΟΧΗ: Θα ακυρώσετε το παραστατικό ${entry.invoiceNumber}\n\nΕπιλέξτε λόγο ακύρωσης:\n\n${reasonPrompt}\n\nΕισάγετε αριθμό (1-4):`,
+      ''
+    );
+
+    if (!userInput) return; // Cancelled
+    
+    selectedReason = reasonOptions.find(r => r.code === userInput);
+    if (!selectedReason) {
+      window.alert('❌ Μη έγκυρη επιλογή. Ακύρωση λειτουργίας.');
+      return;
+    }
+
+    // Proceed with cancellation
+    if (!window.confirm(`Είστε σίγουροι ότι θέλετε να ακυρώσετε;\n\nΛόγος: ${selectedReason.label}`)) {
+      return;
+    }
+
+    setStatus({ type: 'loading', msg: '⏳ Ακύρωση παραστατικού...' });
+    try {
+      if (!backendBase) {
+        throw new Error('Backend δεν έχει ρυθμιστεί');
+      }
+
+      const normalizedBase = backendBase.replace(/\/$/, '');
+      const cancelUrl = `${normalizedBase}/api/aade/cancel-invoice`;
+
+      const cancelPayload = {
+        aadeUserId: aadeTaxisnetUsername || '',
+        subscriptionKey: aadeSubscriptionKey || '',
+        invoiceNumber: entry.invoiceNumber || '',
+        branchId: entry.branchId || branch,
+        cancelReasonCode: selectedReason.code,
+        useTestingEndpoint: aadeEnv === 'preproduction',
+      };
+
+      console.log('📤 Sending cancel request:', { ...cancelPayload, subscriptionKey: '[REDACTED]' });
+
+      const response = await fetch(cancelUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cancelPayload),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.cancelMark) {
+        console.log('✅ Invoice cancelled successfully:', result.cancelMark);
+        
+        // Update history entry status to 'CANCELLED'
+        setHistory(prevHistory =>
+          prevHistory.map(h =>
+            h.invoiceNumber === entry.invoiceNumber
+              ? { ...h, status: 'CANCELLED', cancelMark: result.cancelMark }
+              : h
+          )
+        );
+
+        setStatus({ type: 'success', msg: `✅ Το παραστατικό ακυρώθηκε με επιτυχία! (Αριθμός: ${result.cancelMark})` });
+        window.alert(`✅ Το παραστατικό ακυρώθηκε με επιτυχία!\n\nΑριθμός ακύρωσης: ${result.cancelMark}`);
+      } else {
+        const errorMsg = result.error || 'Άγνωστο σφάλμα';
+        console.error('❌ Cancel failed:', errorMsg);
+        setStatus({ type: 'error', msg: `❌ Αποτυχία ακύρωσης: ${errorMsg}` });
+        window.alert(`❌ Αποτυχία ακύρωσης: ${errorMsg}`);
+      }
+    } catch (err) {
+      console.error('❌ Error calling cancel endpoint:', err);
+      setStatus({ type: 'error', msg: `❌ Σφάλμα: ${err.message}` });
+      window.alert(`❌ Σφάλμα: ${err.message}`);
+    }
+  };
+
+  const handleCustomerLookup = async (vatId) => {
+    if (!vatId || !vatId.trim()) {
+      window.alert('⚠️ Εισάγετε ΑΦΜ για αναζήτηση');
+      return null;
+    }
+
+    try {
+      if (!backendBase) {
+        throw new Error('Backend δεν έχει ρυθμιστεί');
+      }
+
+      const normalizedBase = backendBase.replace(/\/$/, '');
+      
+      // Build URL with GSIS credentials if available
+      let lookupUrl = `${normalizedBase}/api/gsis/lookup-customer?vat=${encodeURIComponent(vatId)}`;
+      
+      // Add credentials if they exist in BackendControls settings
+      // These can be configured in the app settings
+      if (typeof window.gsisUsername !== 'undefined' && window.gsisUsername) {
+        lookupUrl += `&username=${encodeURIComponent(window.gsisUsername)}`;
+      }
+      if (typeof window.gsisPassword !== 'undefined' && window.gsisPassword) {
+        lookupUrl += `&password=${encodeURIComponent(window.gsisPassword)}`;
+      }
+
+      console.log(`📤 Lookup customer for VAT: ${vatId}`);
+
+      const response = await fetch(lookupUrl, { method: 'GET' });
+      const result = await response.json();
+
+      console.log('📦 Response:', result, 'Status:', response.status);
+
+      if (response.ok && result.ok) {
+        // Backend returns { ok: true, vat, name, city, postalCode, address, ... }
+        const customerData = {
+          name: result.name || '',
+          vat: result.vat || vatId,
+          city: result.city || '',
+          postalCode: result.postalCode || '',
+          address: result.address || ''
+        };
+        console.log('✅ Customer found:', customerData);
+        return customerData;
+      } else {
+        const errorMsg = result.error || 'Δεν βρέθηκε πελάτης';
+        console.warn('❌ Lookup failed:', errorMsg);
+        window.alert(`⚠️ ${errorMsg}`);
+        return null;
+      }
+    } catch (err) {
+      console.error('❌ Error calling lookup endpoint:', err);
+      window.alert(`❌ Σφάλμα αναζήτησης: ${err.message}`);
+      return null;
+    }
+  };
+
   const [pdfPreviewState, setPdfPreviewState] = useState({ open: false, url: null, blob: null, fileName: '' });
   const totals = useMemo(() => calcTotals(items), [items]);
-  const isVilla = branch === 'villa1' || branch === 'villa2';
+  const isVilla = VILLA_BRANCH_IDS.includes(branch);
   useEffect(() => { if (!isVilla) setSurcharge(0); }, [branch, isVilla]);
   // Auto-calc surcharge for villas based on simple per-branch rule
   useEffect(() => {
@@ -312,6 +628,21 @@ function InvoiceAppMock() {
     const rule = branchCfg?.revenueMapping?.surchargeRule || null;
     if (!rule) return;
     let value = 0;
+    // If rule has an effective date range, check invoiceDate falls within it
+    try {
+      if (rule.effectiveFrom || rule.effectiveTo) {
+        const d = new Date(invoiceDate);
+        const from = rule.effectiveFrom ? new Date(rule.effectiveFrom) : null;
+        const to = rule.effectiveTo ? new Date(rule.effectiveTo) : null;
+        if ((from && d < from) || (to && d > to)) {
+          // Outside effective range -> no surcharge from this rule
+          setSurcharge(0);
+          return;
+        }
+      }
+    } catch (err) {
+      // ignore parse errors and continue
+    }
     if (rule.mode === 'perNight') {
       const nights = items.reduce((s, it) => s + Number(it.qty || 0), 0);
       value = Number(rule.rate || 0) * nights;
@@ -342,9 +673,39 @@ function InvoiceAppMock() {
       setInvoiceNumber(nextVal);
     } catch {}
   }, [branch, history]);
+  // When switching to a restaurant branch, if all item descriptions are empty, set first to default
+  useEffect(() => {
+    if (!RESTAURANT_BRANCH_IDS.includes(branch)) return;
+    if (!items || !items.length) return;
+    const allEmpty = items.every(it => !String(it.description || '').trim());
+    if (allEmpty) {
+      const clone = [...items];
+      clone[0] = { ...clone[0], description: DEFAULT_RESTAURANT_DESC };
+      setItems(clone);
+    }
+  }, [branch]);
+
+  // When switching to a villa branch, set villa default if empty and replace Italian default if present
+  useEffect(() => {
+    if (!isVilla) return;
+    if (!items || !items.length) return;
+    const allEmpty = items.every(it => !String(it.description || '').trim());
+    if (allEmpty) {
+      const clone = [...items];
+      clone[0] = { ...clone[0], description: DEFAULT_VILLA_DESC };
+      setItems(clone);
+      return;
+    }
+    const needReplace = items.some(it => String(it.description || '').trim() === DEFAULT_RESTAURANT_DESC);
+    if (needReplace) {
+      const replaced = items.map((it, idx) => (String(it.description || '').trim() === DEFAULT_RESTAURANT_DESC ? { ...it, description: idx === 0 ? DEFAULT_VILLA_DESC : '' } : it));
+      setItems(replaced);
+    }
+  }, [branch]);
   const persistFailedQueue = (q) => { setFailedQueue(q); localStorage.setItem('aade_failed_queue', JSON.stringify(q)); };
   const persistCustomers = (list) => { setCustomers(list); localStorage.setItem(storageKeyCustomers(branch), JSON.stringify(list)); };
   const persistHistory = (list) => { setHistory(list); localStorage.setItem(storageKeyHistory(), JSON.stringify(list)); };
+  const persistTrash = (list) => { setTrash(list); localStorage.setItem(storageKeyTrash(), JSON.stringify(list)); };
   const openConfirm = (config) => setConfirmState(config);
   const closeConfirm = () => setConfirmState(null);
   const handleDialogConfirm = async () => {
@@ -357,9 +718,50 @@ function InvoiceAppMock() {
     }
   };
   const handleDialogCancel = () => closeConfirm();
-  const saveDraft = () => { const draft = { branchId: branchCfg.id, invoiceDate, invoiceNumber, customer, items, surcharge, paymentMethod, separateSurcharge }; localStorage.setItem('invoice_draft', JSON.stringify(draft)); setStatus({ type: 'info', msg: 'Αποθηκεύτηκε πρόχειρο.' }); };
-  const loadDraft = () => { try { const d = JSON.parse(localStorage.getItem('invoice_draft') || 'null'); if (!d) { setStatus({ type: 'error', msg: 'Δεν βρέθηκε πρόχειρο.' }); return; } setBranch(d.branchId in BRANCHES ? d.branchId : 'central'); setCustomer(d.customer || { name: '', vat: '', email: '', address: '', city: '' }); setItems(d.items || [{ description: '', qty: 1, price: 0, vatRate: 13 }]); setInvoiceDate(d.invoiceDate || new Date().toISOString().substring(0,10)); /* invoiceNumber auto-set by effect */ setSurcharge(d.surcharge || 0); setPaymentMethod(d.paymentMethod || 'cash'); setSeparateSurcharge(Boolean(d.separateSurcharge)); setStatus({ type: 'success', msg: 'Φορτώθηκε πρόχειρο.' }); } catch { setStatus({ type: 'error', msg: 'Σφάλμα ανάγνωσης προχείρου.' }); } };
-  const addItem = () => setItems((prev) => [...prev, { description: '', qty: 1, price: 0, vatRate: branchCfg.revenueMapping.defaultVat }]);
+  const saveDraft = () => {
+    const draft = {
+      branchId: branchCfg.id,
+      invoiceDate,
+      invoiceTime,
+      invoiceNumber,
+      customer,
+      items,
+      surcharge,
+      paymentMethod,
+      separateSurcharge,
+    };
+    localStorage.setItem('invoice_draft', JSON.stringify(draft));
+    setStatus({ type: 'info', msg: 'Αποθηκεύτηκε πρόχειρο.' });
+  };
+  const loadDraft = () => {
+    try {
+      const d = JSON.parse(localStorage.getItem('invoice_draft') || 'null');
+      if (!d) {
+        setStatus({ type: 'error', msg: 'Δεν βρέθηκε πρόχειρο.' });
+        return;
+      }
+      setBranch(d.branchId in BRANCHES ? d.branchId : 'central');
+      setCustomer(d.customer || { name: '', vat: '', email: '', address: '', city: '' });
+      const draftItems = d.items && Array.isArray(d.items) ? d.items : null;
+      if (draftItems) {
+        setItems(draftItems);
+      } else {
+        const b = d.branchId || 'central';
+        const initDesc = getDefaultDescriptionForBranch(b);
+        setItems([{ description: initDesc, qty: 1, price: 0, vatRate: branchCfg.revenueMapping.defaultVat }]);
+      }
+      setInvoiceDate(d.invoiceDate || new Date().toISOString().substring(0, 10));
+      setInvoiceTime(d.invoiceTime || new Date().toTimeString().substring(0, 5));
+      /* invoiceNumber auto-set by effect */
+      setSurcharge(d.surcharge || 0);
+      setPaymentMethod(d.paymentMethod || 'cash');
+      setSeparateSurcharge(Boolean(d.separateSurcharge));
+      setStatus({ type: 'success', msg: 'Φορτώθηκε πρόχειρο.' });
+    } catch {
+      setStatus({ type: 'error', msg: 'Σφάλμα ανάγνωσης προχείρου.' });
+    }
+  };
+  const addItem = () => setItems((prev) => [...prev, { description: getDefaultDescriptionForBranch(branch), qty: 1, price: 0, vatRate: branchCfg.revenueMapping.defaultVat }]);
   const removeItem = (idx) => setItems((prev) => prev.filter((_, i) => i !== idx));
   const addCustomer = () => { if (!customer.name || !customer.vat) { setStatus({ type: 'error', msg: 'Συμπλήρωσε Επωνυμία και ΑΦΜ για αποθήκευση πελάτη.' }); return; } const exists = customers.some(c => c.vat === customer.vat); const list = exists ? customers.map(c => c.vat === customer.vat ? { ...customer } : c) : [{ ...customer }, ...customers]; persistCustomers(list); setStatus({ type: 'success', msg: exists ? 'Ενημερώθηκε ο πελάτης.' : 'Προστέθηκε νέος πελάτης.' }); };
   const deleteCustomer = (vat, name) => {
@@ -383,9 +785,164 @@ function InvoiceAppMock() {
   const pickCustomer = (vat) => { const c = customers.find(x => x.vat === vat); if (c) setCustomer({ ...c }); };
   const addHistoryEntry = (entry) => { const list = [{ id: `${Date.now()}-${Math.random().toString(36).slice(2,7)}`, ...entry }, ...history]; persistHistory(list); };
   const updateHistoryEntryByInvoice = (invoiceNumber, patch) => { const list = history.map(h => h.invoiceNumber === invoiceNumber ? { ...h, ...patch } : h); persistHistory(list); };
-  const serverValidate = async (payload) => { const url = `${backendBase.replace(/\/$/,'')}/api/aade/validate`; const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (!res.ok) throw new Error('Validate failed'); return res.json(); };
-  const serverSubmit = async (payload) => { const url = `${backendBase.replace(/\/$/,'')}/api/aade/submit`; const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }; return res.json(); };
-  const serverRetry = async (payload) => { const url = `${backendBase.replace(/\/$/,'')}/api/aade/retry`; const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }; return res.json(); };
+  const moveHistoryEntryToTrash = (entry) => {
+    if (!entry) return;
+    const current = history.find((h) => h.id === entry.id) || entry;
+    const descriptor = current.invoiceNumber ? `#${current.invoiceNumber}` : (current.id || 'εγγραφή');
+    const entryWithMeta = { ...current, deletedAt: new Date().toISOString() };
+    const updatedHistory = history.filter((h) => h.id !== current.id);
+    const nextTrash = [entryWithMeta, ...trash.filter((t) => t.id !== current.id)];
+    persistHistory(updatedHistory);
+    persistTrash(nextTrash);
+    setStatus({ type: 'info', msg: `Το τιμολόγιο ${descriptor} μετακινήθηκε στον κάδο.` });
+  };
+  const requestDeleteHistory = (entry) => {
+    if (!entry) return;
+    const descriptor = entry.invoiceNumber ? `#${entry.invoiceNumber}` : (entry.id || 'εγγραφή');
+    openConfirm({
+      title: 'Μεταφορά στον κάδο',
+      message: `Το τιμολόγιο ${descriptor} θα μεταφερθεί στον κάδο ανακύκλωσης. Μπορείς να το επαναφέρεις αργότερα από εκεί.`,
+      confirmLabel: 'Μεταφορά',
+      cancelLabel: 'Άκυρο',
+      intent: 'danger',
+      onConfirm: () => moveHistoryEntryToTrash(entry),
+    });
+  };
+  const restoreHistoryEntry = (entryId) => {
+    const entry = trash.find((t) => t.id === entryId);
+    if (!entry) return;
+    const { deletedAt, ...rest } = entry;
+    const descriptor = rest.invoiceNumber ? `#${rest.invoiceNumber}` : (rest.id || 'εγγραφή');
+    const nextHistory = [{ ...rest }, ...history.filter((h) => h.id !== rest.id)];
+    const nextTrash = trash.filter((t) => t.id !== entryId);
+    persistHistory(nextHistory);
+    persistTrash(nextTrash);
+    setStatus({ type: 'success', msg: `Το τιμολόγιο ${descriptor} επαναφέρθηκε από τον κάδο.` });
+  };
+  const requestRestoreFromTrash = (entry) => {
+    if (!entry) return;
+    const descriptor = entry.invoiceNumber ? `#${entry.invoiceNumber}` : (entry.id || 'εγγραφή');
+    openConfirm({
+      title: 'Επαναφορά τιμολογίου',
+      message: `Το τιμολόγιο ${descriptor} θα επιστρέψει στο ιστορικό υποβολών.`,
+      confirmLabel: 'Επαναφορά',
+      cancelLabel: 'Άκυρο',
+      intent: 'default',
+      onConfirm: () => restoreHistoryEntry(entry.id),
+    });
+  };
+  const deleteTrashEntry = (entryId) => {
+    const nextTrash = trash.filter((t) => t.id !== entryId);
+    persistTrash(nextTrash);
+    setStatus({ type: 'info', msg: 'Το στοιχείο διαγράφηκε οριστικά από τον κάδο.' });
+  };
+  const requestDeleteTrashEntry = (entry) => {
+    if (!entry) return;
+    const descriptor = entry.invoiceNumber ? `#${entry.invoiceNumber}` : (entry.id || 'εγγραφή');
+    openConfirm({
+      title: 'Μόνιμη διαγραφή',
+      message: `Το τιμολόγιο ${descriptor} θα αφαιρεθεί οριστικά από τον κάδο. Η ενέργεια δεν μπορεί να αναιρεθεί.`,
+      confirmLabel: 'Διαγραφή',
+      cancelLabel: 'Άκυρο',
+      intent: 'danger',
+      onConfirm: () => deleteTrashEntry(entry.id),
+    });
+  };
+  const emptyTrash = () => {
+    persistTrash([]);
+    setStatus({ type: 'success', msg: 'Ο κάδος άδειασε επιτυχώς.' });
+  };
+  const requestEmptyTrash = () => {
+    if (!trash.length) return;
+    openConfirm({
+      title: 'Άδειασμα κάδου',
+      message: 'Όλα τα τιμολόγια στον κάδο θα διαγραφούν οριστικά. Θέλεις να συνεχίσεις;',
+      confirmLabel: 'Άδειασμα',
+      cancelLabel: 'Άκυρο',
+      intent: 'danger',
+      onConfirm: () => emptyTrash(),
+    });
+  };
+  const serverValidate = async (payload) => {
+    let base = backendBase.replace(/\/$/,'');
+    if (base.includes('mydatapi') || base.includes('SendInvoices')) {
+      base = 'http://127.0.0.1:3000';
+      setBackendBase(base);
+      throw new Error('Backend URL was invalid. Reset to default localhost:3000');
+    }
+    
+    const url = `${base}/api/aade/validate`;
+    const headers = { 'Content-Type': 'application/json' };
+    
+    // Backend expects credentials in the body
+    const body = {
+      aadeUserId: aadeTaxisnetUsername,
+      subscriptionKey: aadeSubscriptionKey,
+      invoicePayload: payload,
+    };
+    
+    console.log('serverValidate: Sending', {
+      aadeUserId: aadeTaxisnetUsername,
+      subscriptionKey: aadeSubscriptionKey ? aadeSubscriptionKey.substring(0, 8) + '...' : 'N/A',
+      payloadKeys: Object.keys(payload || {}),
+      header_aa: payload?.header?.aa,
+      header_issueDate: payload?.header?.issueDate,
+      linesCount: payload?.lines?.length || 0,
+      totals: payload?.totals,
+    });
+    
+    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error('Validate failed');
+    return res.json();
+  };
+
+  const serverSubmit = async (payload) => {
+    let base = backendBase.replace(/\/$/,'');
+    if (base.includes('mydatapi') || base.includes('SendInvoices')) {
+      base = 'http://127.0.0.1:3000';
+      setBackendBase(base);
+      throw new Error('Backend URL was invalid. Reset to default localhost:3000');
+    }
+    
+    const url = `${base}/api/aade/submit`;
+    const headers = { 'Content-Type': 'application/json' };
+    
+    // Backend expects credentials in the body, not headers
+    const body = {
+      aadeUserId: aadeTaxisnetUsername,
+      subscriptionKey: aadeSubscriptionKey,
+      invoicePayload: payload,
+      useTestingEndpoint: aadeEnv === 'preproduction',
+    };
+    
+    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+    return res.json();
+  };
+
+  const serverRetry = async (payload) => {
+    let base = backendBase.replace(/\/$/,'');
+    if (base.includes('mydatapi') || base.includes('SendInvoices')) {
+      base = 'http://127.0.0.1:3000';
+      setBackendBase(base);
+      throw new Error('Backend URL was invalid. Reset to default localhost:3000');
+    }
+    
+    const url = `${base}/api/aade/retry`;
+    const headers = { 'Content-Type': 'application/json' };
+    
+    // Backend expects credentials in the body
+    const body = {
+      aadeUserId: aadeTaxisnetUsername,
+      subscriptionKey: aadeSubscriptionKey,
+      invoicePayload: payload,
+      useTestingEndpoint: aadeEnv === 'preproduction',
+    };
+    
+    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+    return res.json();
+  };
   const removeFailedEntry = (index) => {
     const q = failedQueue.filter((_, idx) => idx !== index);
     persistFailedQueue(q);
@@ -393,27 +950,61 @@ function InvoiceAppMock() {
   };
   const handleSubmit = async () => {
     setStatus({ type: 'info', msg: 'Υποβολή σε AADE…' });
-    const invoice = { branchId: branchCfg.id, invoiceDate, invoiceNumber, customer, items, surcharge };
+    
+    // Check credentials first
+    if (!aadeTaxisnetUsername || !aadeSubscriptionKey) {
+      setStatus({ type: 'error', msg: 'Λείπουν τα credentials ΑΑΔΕ (AADE User ID ή Subscription Key). Συμπληρώστε τα στις Ρυθμίσεις.' });
+      return;
+    }
+    
+    if (!backendBase) {
+      setStatus({ type: 'error', msg: 'Λείπει το Backend URL. Ορίστε το στις Ρυθμίσεις (default: http://127.0.0.1:3000).' });
+      return;
+    }
+    
+    const invoice = {
+      branchId: branchCfg.id,
+      invoiceDate,
+      invoiceNumber,
+      customer,
+      items,
+      surcharge,
+      issueTime: invoiceTime,
+      invoiceTime,
+    };
+    
+    // Validate required fields before building payload
+    if (!invoiceDate) {
+      setStatus({ type: 'error', msg: 'Λείπει η ημερομηνία του τιμολογίου.' });
+      return;
+    }
+    if (!invoiceNumber) {
+      setStatus({ type: 'error', msg: 'Λείπει ο αριθμός του τιμολογίου.' });
+      return;
+    }
+    if (!items || items.length === 0) {
+      setStatus({ type: 'error', msg: 'Δεν υπάρχουν γραμμές στο τιμολόγιο.' });
+      return;
+    }
+    
     const errors = validateInvoiceForAADE(invoice, branchCfg);
     if (errors.length) { setStatus({ type: 'error', msg: errors.join('\n') }); return; }
-    const payload = buildMyDataPayload(invoice, branchCfg, { surchargeMode: (isVilla && separateSurcharge) ? 'separateInvoice' : 'autoLine' });
+  const payload = buildMyDataPayload(invoice, branchCfg, { surchargeMode: (isVilla && separateSurcharge) ? 'separateInvoice' : 'autoLine' });
     setLoadingState({ type: 'submit', message: 'Υποβολή τιμολογίου στο myDATA…' });
     
     try {
       let result;
-      if (useBackend) {
-        // Validation
+      // Always attempt real backend validate + submit
+      try {
         const validateResult = await serverValidate(payload);
-        if (!validateResult.ok) {
-          setStatus({ type: 'error', msg: `Αποτυχία επικύρωσης: ${validateResult.error}` });
-          return;
-        }
-        
-        // Submission
-        result = await serverSubmit(payload);
-      } else {
-        // Mock submission
-        result = await submitToAADEMock(payload);
+        if (!validateResult.ok) throw new Error(validateResult.error || 'Validate failed');
+        const submitResult = await serverSubmit(payload);
+        if (!submitResult.ok) throw new Error(submitResult.error || `Submit failed`);
+        result = submitResult;
+      } catch (err) {
+        // Treat as failed submission to be retried later
+        console.error('Backend submission failed:', err?.message || err);
+        result = { ok: false, error: err?.message || String(err) };
       }
       
       if (result.ok) {
@@ -423,7 +1014,8 @@ function InvoiceAppMock() {
           status: 'sent',
           mark: result.mark,
           timestamp: Date.now(),
-          issueDate: invoiceDate
+          issueDate: invoiceDate,
+          issueTime: invoiceTime,
         };
         addHistoryEntry(historyEntry);
         // Commit used invoice number and pre-fill next suggested number
@@ -433,6 +1025,7 @@ function InvoiceAppMock() {
           setInvoiceNumber(nextVal);
         } catch {}
         setStatus({ type: 'success', msg: `🎉 ΕΠΙΤΥΧΗΣ ΚΑΤΑΧΩΡΗΣΗ! 🎉\n\nΤο τιμολόγιο ${invoiceNumber} καταχωρήθηκε επιτυχώς στο myDATA.\nΚωδικός AADE: ${result.mark}` });
+        // Note: automatic TAAK issuance disabled to restore previous behavior
         
         // Don't clear form automatically - let user decide
       } else {
@@ -450,7 +1043,8 @@ function InvoiceAppMock() {
           status: 'failed',
           error: result.error,
           timestamp: Date.now(),
-          issueDate: invoiceDate
+          issueDate: invoiceDate,
+          issueTime: invoiceTime,
         };
         addHistoryEntry(historyEntry);
         setStatus({ type: 'error', msg: `Αποτυχία υποβολής: ${result.error}` });
@@ -465,13 +1059,14 @@ function InvoiceAppMock() {
 
   const resetForm = () => {
     setBranch('central');
-    setCustomer({ name: '', vat: '', email: '', address: '', city: '' });
-    setItems([{ description: '', qty: 1, price: 0, vatRate: 13 }]);
-    setInvoiceDate(new Date().toISOString().substring(0, 10));
-    // invoiceNumber will be auto-set by the effect using branch/history
-    setSurcharge(0);
-    setSeparateSurcharge(false);
-    setStatus({ type: 'info', msg: 'Καθαρίστηκαν όλα τα πεδία.' });
+  setCustomer({ name: '', vat: '', email: '', address: '', city: '' });
+  setItems([{ description: DEFAULT_RESTAURANT_DESC, qty: 1, price: 0, vatRate: 13 }]);
+  setInvoiceDate(new Date().toISOString().substring(0, 10));
+  setInvoiceTime(new Date().toTimeString().substring(0, 5));
+  // invoiceNumber will be auto-set by the effect using branch/history
+  setSurcharge(0);
+  setSeparateSurcharge(false);
+  setStatus({ type: 'info', msg: 'Καθαρίστηκαν όλα τα πεδία.' });
   };
   const requestFormReset = () => {
     openConfirm({
@@ -503,10 +1098,7 @@ function InvoiceAppMock() {
     if (showLoader) setLoadingState({ type: 'retryOne', message: `Επανάληψη υποβολής #${index + 1}…` });
     
     try {
-      const result = useBackend ? 
-        await serverRetry(entry.payload) : 
-        await submitToAADEMock(entry.payload);
-      
+      const result = await serverRetry(entry.payload);
       if (result.ok) {
         removeFailedEntry(index);
         setStatus({ type: 'success', msg: `Επιτυχής επανάληψη υποβολής #${index + 1}` });
@@ -521,15 +1113,58 @@ function InvoiceAppMock() {
   };
 
   const branchIssuer = branchCfg.issuer;
+  const lastSuccessfulInvoice = useMemo(() => {
+    let latestEntry = null;
+    let latestTimestamp = -Infinity;
+    for (const entry of history) {
+      if (entry?.status !== 'sent') continue;
+      const ts = entry.timestamp ?? new Date(entry.issueDate || entry.invoiceDate || 0).getTime();
+      if (!Number.isFinite(ts)) continue;
+      if (ts > latestTimestamp) {
+        latestTimestamp = ts;
+        latestEntry = entry;
+      }
+    }
+    return latestEntry;
+  }, [history]);
+
+  const todaysBranchTotals = useMemo(() => {
+    const accumulator = { net: 0, vat: 0, gross: 0 };
+    const nowClone = new Date(currentTime);
+    if (Number.isNaN(nowClone.getTime())) return accumulator;
+    const todayISO = nowClone.toISOString().slice(0, 10);
+    for (const entry of history) {
+      if (entry.branchId !== branch) continue;
+      const issueValue = entry.issueDate || entry.invoiceDate;
+      if (!issueValue) continue;
+      const dateObj = new Date(issueValue);
+      if (Number.isNaN(dateObj.getTime())) continue;
+      if (dateObj.toISOString().slice(0, 10) !== todayISO) continue;
+      const t = entry.totals || {};
+      const net = Number(t.net || 0);
+      const vat = Number(t.vat || 0);
+      const gross = t.gross != null ? Number(t.gross) : net + vat;
+      accumulator.net += net;
+      accumulator.vat += vat;
+      accumulator.gross += gross;
+    }
+    return {
+      net: round2(accumulator.net),
+      vat: round2(accumulator.vat),
+      gross: round2(accumulator.gross),
+    };
+  }, [history, branch, currentTime]);
   const buildCurrentInvoice = () => ({
     branchId: branchCfg.id,
     invoiceDate,
     issueDate: invoiceDate,
+    issueTime: invoiceTime,
     invoiceNumber,
     customer: { ...customer },
     items: items.map((item) => ({ ...item })),
     paymentMethod,
     surcharge,
+    dateFormat,
   });
 
   const prepareInvoiceForPreview = (invoiceData) => normalizeInvoiceForPdf(invoiceData);
@@ -592,7 +1227,7 @@ function InvoiceAppMock() {
       try {
         setLoadingState({ type: 'pdf-preview', message: 'Δημιουργία προεπισκόπησης αποδείκτη…' });
         const prepared = normalizeInvoiceForPdf(historyEntry);
-        const blob = await window.PDFGenerator.generateThermalReceiptPDFBlob(prepared, BRANCHES, dynamicLogoUrl, { qr: true });
+        const blob = await window.PDFGenerator.generateThermalReceiptPDFBlob(prepared, BRANCHES, null, { qr: true });
         const fileName = `receipt_${prepared.invoiceNumber || 'preview'}.pdf`;
         const objectUrl = URL.createObjectURL(blob);
         setPdfPreviewState((prev) => {
@@ -631,7 +1266,7 @@ function InvoiceAppMock() {
             surcharge: round2(Number(surcharge || 0)),
           }
         });
-        const blob = await window.PDFGenerator.generateThermalReceiptPDFBlob(prepared, BRANCHES, dynamicLogoUrl, { qr: true });
+        const blob = await window.PDFGenerator.generateThermalReceiptPDFBlob(prepared, BRANCHES, null, { qr: true });
         const fileName = `receipt_${prepared.invoiceNumber || 'preview'}.pdf`;
         const objectUrl = URL.createObjectURL(blob);
         setPdfPreviewState((prev) => {
@@ -654,14 +1289,14 @@ function InvoiceAppMock() {
     });
   };
 
-  // Issue separate TAAK document for a history invoice (villas)
+  // Issue separate ΤΑΚΚ document for a history invoice (villas)
   const handleIssueSurchargeForHistory = async (historyEntry) => {
     if (!historyEntry) return;
     const targetBranch = historyEntry.branchId;
     const cfg = BRANCHES[targetBranch];
-    if (!cfg) { setStatus({ type: 'error', msg: 'Άγνωστο υποκατάστημα για TAAK.' }); return; }
-    const isVillaRow = targetBranch === 'villa1' || targetBranch === 'villa2';
-    if (!isVillaRow) { setStatus({ type: 'error', msg: 'Το TAAK ισχύει μόνο για τις βίλες.' }); return; }
+  if (!cfg) { setStatus({ type: 'error', msg: 'Άγνωστο υποκατάστημα για ΤΑΚΚ.' }); return; }
+  const isVillaRow = VILLA_BRANCH_IDS.includes(targetBranch);
+  if (!isVillaRow) { setStatus({ type: 'error', msg: 'Το ΤΑΚΚ ισχύει μόνο για τις βίλες.' }); return; }
 
     // Υπολόγισε surcharge βάσει κανόνα/ημερομηνίας του entry
     let surchargeValue = Number(historyEntry?.surcharge || historyEntry?.totals?.surcharge || 0);
@@ -685,9 +1320,9 @@ function InvoiceAppMock() {
         surchargeValue = Math.round((v + Number.EPSILON) * 100) / 100;
       }
     }
-    if (!surchargeValue) { setStatus({ type: 'error', msg: 'Δεν προέκυψε ποσό TAAK για έκδοση.' }); return; }
+  if (!surchargeValue) { setStatus({ type: 'error', msg: 'Δεν προέκυψε ποσό ΤΑΚΚ για έκδοση.' }); return; }
 
-    // Δημιούργησε νέο τιμολόγιο μόνο με TAAK
+  // Δημιούργησε νέο τιμολόγιο μόνο με ΤΑΚΚ
     const newNumber = generateNextInvoiceNumberValue(targetBranch, history);
     const today = new Date().toISOString().slice(0,10);
     const surchargeInvoice = {
@@ -702,9 +1337,9 @@ function InvoiceAppMock() {
     };
     const payload = buildMyDataPayload(surchargeInvoice, cfg, { surchargeMode: 'surchargeOnly' });
 
-    setLoadingState({ type: 'submit', message: 'Έκδοση TAAK…' });
+  setLoadingState({ type: 'submit', message: 'Έκδοση ΤΑΚΚ…' });
     try {
-      const result = useBackend ? await serverSubmit(payload) : await submitToAADEMock(payload);
+      const result = await serverSubmit(payload);
       const historyEntry2 = {
         ...surchargeInvoice,
         totals: payload.totals,
@@ -716,9 +1351,9 @@ function InvoiceAppMock() {
       addHistoryEntry(historyEntry2);
       if (result.ok) {
         commitInvoiceSequence(targetBranch, newNumber);
-        setStatus({ type: 'success', msg: `Εκδόθηκε TAAK #${newNumber} (${surchargeValue.toFixed(2)} €). MARK: ${result.mark}` });
+        setStatus({ type: 'success', msg: `Εκδόθηκε ΤΑΚΚ #${newNumber} (${surchargeValue.toFixed(2)} €). MARK: ${result.mark}` });
       } else {
-        setStatus({ type: 'error', msg: `Αποτυχία έκδοσης TAAK: ${result.error}` });
+        setStatus({ type: 'error', msg: `Αποτυχία έκδοσης ΤΑΚΚ: ${result.error}` });
       }
     } catch (err) {
       setStatus({ type: 'error', msg: `Σφάλμα δικτύου: ${err.message}` });
@@ -802,7 +1437,20 @@ function InvoiceAppMock() {
   // Render invoice creation section
   const renderInvoiceSection = () => (
     <div className="space-y-6">
-      <DashboardSummary stats={summaryStats} />
+      <InvoiceMetadata
+        branch={branch}
+        branches={BRANCHES}
+        branchCfg={branchCfg}
+        invoiceNumber={invoiceNumber}
+        invoiceDate={invoiceDate}
+        paymentMethod={paymentMethod}
+        invoiceTime={invoiceTime}
+        onBranchChange={setBranch}
+        onInvoiceNumberChange={setInvoiceNumber}
+        onInvoiceDateChange={setInvoiceDate}
+        onPaymentMethodChange={setPaymentMethod}
+        onInvoiceTimeChange={setInvoiceTime}
+      />
 
       <CustomerPanel
         customer={customer}
@@ -811,19 +1459,20 @@ function InvoiceAppMock() {
         onAddCustomer={addCustomer}
         onRequestDeleteCustomer={(payload) => requestCustomerDeletion(payload)}
         onPickCustomer={(vat) => pickCustomer(vat)}
-      />
-      
-      <InvoiceMetadata
-        branch={branch}
-        branches={BRANCHES}
-        branchCfg={branchCfg}
-        invoiceNumber={invoiceNumber}
-        invoiceDate={invoiceDate}
-        paymentMethod={paymentMethod}
-        onBranchChange={setBranch}
-        onInvoiceNumberChange={setInvoiceNumber}
-        onInvoiceDateChange={setInvoiceDate}
-        onPaymentMethodChange={setPaymentMethod}
+        onLookupCustomer={async (vatId) => {
+          const foundCustomer = await handleCustomerLookup(vatId);
+          if (foundCustomer) {
+            setCustomer({
+              name: foundCustomer.name || '',
+              vat: foundCustomer.vat || vatId,
+              city: foundCustomer.city || '',
+              address: foundCustomer.address || '',
+              postalCode: foundCustomer.postalCode || '',
+              email: ''
+            });
+            window.alert(`✅ Πελάτης βρέθηκε!\n\n${foundCustomer.name}`);
+          }
+        }}
       />
 
       <ItemsTable
@@ -851,53 +1500,67 @@ function InvoiceAppMock() {
         <button
           onClick={handlePreviewCurrentInvoice}
           disabled={isProcessing}
-          className="w-full px-6 py-3 bg-sky-700 text-white rounded-2xl font-semibold text-sm shadow-sm hover:shadow-md transform transition hover:-translate-y-0.5 border border-sky-600/40 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-5 py-4 text-left text-slate-100 transition hover:border-sky-400/70 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Προεπισκόπηση PDF
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-500/20 text-sky-100">
+              <DocumentStackIcon className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">Προεπισκόπηση PDF</p>
+              <p className="text-xs text-slate-300">Οπτικός έλεγχος πριν την υποβολή</p>
+            </div>
+          </div>
         </button>
-
-        {/* Removed manual Next Number button; invoice number is auto-managed */}
 
         <div className="lg:col-span-1 xl:col-span-2">
           <button
             onClick={handleSubmit}
             disabled={isProcessing}
-            className="w-full px-6 py-3 bg-emerald-500 text-white rounded-2xl font-bold text-base shadow-lg hover:shadow-xl transform transition hover:-translate-y-0.5 border border-emerald-600/40 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-2xl border border-emerald-500/40 bg-emerald-500 px-5 py-4 text-left text-emerald-950 shadow-lg shadow-emerald-500/30 transition hover:-translate-y-0.5 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Υποβολή σε myDATA (Sandbox)
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600/20 text-emerald-50">
+                <CheckCircleIcon className="h-6 w-6" />
+              </span>
+              <div>
+                <p className="text-base font-semibold">Υποβολή στο myDATA</p>
+                <p className="text-xs text-emerald-900/90">Αποστολή μέσω ασφαλούς backend</p>
+              </div>
+            </div>
           </button>
         </div>
 
         <button
           onClick={handlePrintThermalCurrentInvoice}
           disabled={isProcessing}
-          className="w-full px-6 py-3 bg-slate-800 text-slate-100 rounded-2xl font-semibold text-sm shadow-sm hover:shadow-md transform transition hover:-translate-y-0.5 border border-slate-700/40 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-2xl border border-slate-700/50 bg-slate-900/70 px-5 py-4 text-left text-slate-100 transition hover:border-slate-500/70 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Print Receipt (80mm)
-        </button>
-
-        <button
-          onClick={saveDraft}
-          disabled={isProcessing}
-          className="w-full px-6 py-3 bg-slate-900/70 text-slate-200 rounded-2xl font-semibold text-sm shadow-sm hover:shadow-md transform transition hover:-translate-y-0.5 border border-slate-700/40 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Αποθήκευση Προχείρου
-        </button>
-
-        <button
-          onClick={loadDraft}
-          disabled={isProcessing}
-          className="w-full px-6 py-3 bg-violet-700 text-white rounded-2xl font-semibold text-sm shadow-sm hover:shadow-md transform transition hover:-translate-y-0.5 border border-violet-600/30 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Φόρτωση Προχείρου
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-800 text-slate-200">
+              <HistoryIcon className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">Print Receipt (80mm)</p>
+              <p className="text-xs text-slate-400">Θερμική απόδειξη με QR</p>
+            </div>
+          </div>
         </button>
 
         <button
           onClick={requestFormReset}
           disabled={isProcessing}
-          className="w-full px-6 py-3 bg-transparent text-slate-300 rounded-2xl font-semibold text-sm hover:bg-slate-800/40 transition border border-slate-700/40 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-2xl border border-slate-700/50 bg-transparent px-5 py-4 text-left text-slate-300 transition hover:bg-slate-900/40 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Καθαρισμός
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-slate-400">
+              <WarningIcon className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">Καθαρισμός</p>
+              <p className="text-xs text-slate-400">Επαναφορά φόρμας και πεδίων</p>
+            </div>
+          </div>
         </button>
       </div>
     </div>
@@ -909,10 +1572,13 @@ function InvoiceAppMock() {
       history={history}
       branches={BRANCHES}
       currentBranchId={branch}
+      dateFormat={dateFormat}
       onPreview={handlePreviewHistoryInvoice}
       onDownload={downloadInvoicePDF}
       onReceipt={handleReceiptHistoryInvoice}
       onIssueSurcharge={handleIssueSurchargeForHistory}
+      onDeleteEntry={requestDeleteHistory}
+      onCancel={handleCancelInvoice}
       disableActions={isProcessing}
     />
   );
@@ -945,21 +1611,57 @@ function InvoiceAppMock() {
     <div className="space-y-6">
       <BackendControls
         useBackend={useBackend}
-        setUseBackend={setUseBackend}
         backendBase={backendBase}
-        setBackendBase={setBackendBase}
+        setBackendBase={setBackendBaseValidated}
+        aadeEnv={aadeEnv}
+        setAadeEnv={setAadeEnv}
+        aadeClientId={aadeClientId}
+        setAadeClientId={setAadeClientId}
+        aadeClientSecret={aadeClientSecret}
+        setAadeClientSecret={setAadeClientSecret}
+        aadeApiKey={aadeApiKey}
+        setAadeApiKey={setAadeApiKey}
+        aadeSubscriptionKey={aadeSubscriptionKey}
+        setAadeSubscriptionKey={setAadeSubscriptionKey}
+        aadeTaxisnetUsername={aadeTaxisnetUsername}
+        setAadeTaxisnetUsername={setAadeTaxisnetUsername}
+        aadeTaxisnetPassword={aadeTaxisnetPassword}
+        setAadeTaxisnetPassword={setAadeTaxisnetPassword}
+        aadeCertPath={aadeCertPath}
+        setAadeCertPath={setAadeCertPath}
+        aadeCertPassword={aadeCertPassword}
+        setAadeCertPassword={setAadeCertPassword}
+        gsisUsername={gsisUsername}
+        setGsisUsername={setGsisUsername}
+        gsisPassword={gsisPassword}
+        setGsisPassword={setGsisPassword}
+        connectionStatus={connectionStatus}
+        onTestConnection={handleConnectionTest}
+        isTestingConnection={isTestingConnection}
       />
-      <TestsPanel
-        BRANCHES={BRANCHES}
-        validateInvoiceForAADE={validateInvoiceForAADE}
-        buildMyDataPayload={buildMyDataPayload}
-      />
+      <DateSettings dateFormat={dateFormat} onChange={persistDateFormat} />
+      <PrinterSettings />
     </div>
   );
 
+  const renderTrashSection = () => (
+    <TrashBin
+      entries={trash}
+      branches={BRANCHES}
+      dateFormat={dateFormat}
+      onRestore={requestRestoreFromTrash}
+      onDeleteForever={requestDeleteTrashEntry}
+      onEmpty={requestEmptyTrash}
+      disableActions={isProcessing}
+    />
+  );
+
   return (
-    <>
-      <div className="relative min-h-screen bg-slate-900 lg:flex">
+    <div className="app-shell">
+      <div className="app-shell__grid" aria-hidden />
+      <div className="app-shell__glow app-shell__glow--emerald" aria-hidden />
+      <div className="app-shell__glow app-shell__glow--amber" aria-hidden />
+      <div className="relative min-h-screen bg-transparent lg:flex">
       {/* Sidebar Navigation */}
       <Sidebar
         activeSection={activeSection}
@@ -967,17 +1669,32 @@ function InvoiceAppMock() {
         useBackend={useBackend}
         isMobileOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((s) => !s)}
       />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="px-4 pt-6 sm:px-6 lg:px-8">
+        {/* Header & Operational Ribbon */}
+        <div className="px-4 pt-6 sm:px-6 lg:px-8 space-y-4">
           <Header
-            logoUrl={dynamicLogoUrl}
             branchName={branchCfg.label}
             issuer={branchIssuer}
             onToggleSidebar={() => setSidebarOpen(true)}
+            onToggleSidebarCollapse={() => setSidebarCollapsed((s) => !s)}
+            isSidebarCollapsed={sidebarCollapsed}
+            onRefresh={handleRefresh}
+            onCheckUpdate={handleCheckUpdate}
+          />
+          <ExperienceRibbon
+            branchName={branchCfg.label}
+            aadeEnv={aadeEnv}
+            backendBase={backendBase}
+            connectionStatus={connectionStatus}
+            queueLength={failedQueue.length}
+            lastSuccess={lastSuccessfulInvoice}
+            now={currentTime}
+            timezone={timezoneLabel}
           />
         </div>
 
@@ -987,7 +1704,7 @@ function InvoiceAppMock() {
             {/* Status Message */}
             {status.type !== 'idle' && (
               <div className="sticky top-4 z-10">
-                <StatusMessage status={status} />
+                <StatusMessage status={status} onDismiss={() => setStatus({ type: 'idle', msg: '' })} />
               </div>
             )}
 
@@ -996,6 +1713,7 @@ function InvoiceAppMock() {
             {activeSection === 'history' && renderHistorySection()}
             {activeSection === 'failed' && renderFailedSection()}
             {activeSection === 'settings' && renderSettingsSection()}
+            {activeSection === 'trash' && renderTrashSection()}
           </div>
         </div>
       </div>
@@ -1030,11 +1748,9 @@ function InvoiceAppMock() {
         onClose={closePdfPreview}
         onDownload={handlePreviewDownload}
       />
-    </>
+    </div>
   );
 }
-
-// removed local TestsPanel; using component from ./components/TestsPanel.jsx
 
 function normalizeInvoiceForPdf(invoice) {
   const safeInvoice = invoice ? { ...invoice } : {};
@@ -1051,6 +1767,7 @@ function normalizeInvoiceForPdf(invoice) {
     items,
     customer: safeInvoice.customer ? { ...safeInvoice.customer } : undefined,
     issueDate: safeInvoice.issueDate || safeInvoice.invoiceDate,
+    issueTime: safeInvoice.issueTime || safeInvoice.invoiceTime || '',
     totals: {
       net: round2(net),
       vat: round2(vat),
@@ -1076,7 +1793,7 @@ function downloadInvoicePDF(invoice) {
 const container = document.getElementById('root');
 if (container) {
   const root = createRoot(container);
-  root.render(<InvoiceAppMock />);
+  root.render(<InvoiceApp />);
 }
 
 

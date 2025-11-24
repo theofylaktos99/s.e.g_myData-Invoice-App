@@ -1,0 +1,71 @@
+{
+  "name": "italiancorner-invoice-app-electron",
+  "version": "1.1.0",
+  "description": "Italian Corner Invoice App - Electron Desktop Application",
+  "main": "electron.js",
+  "homepage": "./",
+  "author": "Italian Corner",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "cross-env NODE_ENV=development electron .",
+    "build": "npm run build:electron",
+    "build:electron": "electron-builder",
+    "build:electron:win": "electron-builder --win --publish never",
+    "build:electron:mac": "electron-builder --mac --publish never",
+    "build:electron:linux": "electron-builder --linux --publish never",
+    "build:electron:all": "electron-builder -mwl --publish never"
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "^1.1.1",
+    "electron-updater": "^6.1.1"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.italiancorner.invoice",
+    "productName": "Italian Corner Invoice App",
+    "files": [
+      "dist/**/*",
+      "backendaade/**/*",
+      "electron.js",
+      "preload.js",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "certificateFile": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Italian Corner Invoice App"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.exe"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
+  }
+}
