@@ -1,0 +1,36 @@
+{
+  "version": "1.1.0",
+  "releaseDate": "2025-11-24",
+  "features": [
+    "GSIS VAT Number Lookup",
+    "Cancel Invoice Support",
+    "Auto-Update Mechanism",
+    "Electron Desktop Application",
+    "Backend Auto-Start Service"
+  ],
+  "changes": [
+    "Implemented GSIS RgWsPublic2 SOAP API with WS-Security authentication",
+    "Added GSIS credentials in BackendControls settings",
+    "Created Electron wrapper with auto-update logic",
+    "Updated backend with GSIS lookup endpoint",
+    "Enhanced startup script with upgrade checking",
+    "Added electron-upgrades wrapper batch file"
+  ],
+  "requirements": {
+    "nodeVersion": ">=18.0.0",
+    "windows": ">=Windows 7 SP1",
+    "ram": "512MB minimum",
+    "disk": "200MB minimum"
+  },
+  "installation": {
+    "step1": "Extract files to desired location",
+    "step2": "Run INSTALL-BACKEND-SERVICE.bat to setup backend",
+    "step3": "Run Italian Corner Invoice 1.0.0.exe to start application",
+    "step4": "Configure GSIS credentials in Settings > Backend Controls > GSIS"
+  },
+  "support": {
+    "github": "https://github.com/theofylaktos99/s.e.g_myData-Invoice-App",
+    "backendService": "http://localhost:3000",
+    "defaultBranch": "main"
+  }
+}
