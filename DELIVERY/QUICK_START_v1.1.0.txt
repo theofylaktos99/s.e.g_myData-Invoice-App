@@ -1,0 +1,181 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║           ITALIAN CORNER INVOICE APP v1.1.0 - QUICK START                     ║
+║                        (Ελληνικές Οδηγίες παρακάτω)                           ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+📋 BEFORE YOU START
+═══════════════════════════════════════════════════════════════════════════════
+✓ Have you installed Node.js? If not → https://nodejs.org/ (LTS)
+✓ Do you have AADE myDATA credentials? (User ID + 32-char key)
+✓ Windows 10/11 recommended
+
+🚀 3-STEP INSTALLATION
+═══════════════════════════════════════════════════════════════════════════════
+
+STEP 1: Setup Backend (RUN ONCE!)
+────────────────────────────────
+1. Right-click "INSTALL-BACKEND-SERVICE.bat" 
+2. Select "Run as Administrator"
+3. Wait for "Setup complete!" message
+⏱️ Takes: 2-3 minutes
+
+STEP 2: Launch Application
+──────────────────────────
+1. Double-click "Italian Corner Invoice 1.0.0.exe"
+2. App opens in a new window
+⏱️ Takes: 10-15 seconds
+
+STEP 3: Configure Settings (FIRST TIME ONLY)
+─────────────────────────────────────────────
+1. Click ⚙️ (Settings icon - bottom right)
+2. Fill in:
+   ├─ Backend URL: http://localhost:3000
+   ├─ AADE User ID: (from myDATA Portal)
+   ├─ Subscription Key: (from myDATA Portal)
+   └─ GSIS Credentials: (optional, for VAT lookup)
+3. Click "Έλεγχος σύνδεσης" (Test Connection)
+4. Should see ✓ "Σύνδεση OK"
+
+✅ DONE! Start creating invoices!
+
+
+🎯 COMMON TASKS
+═══════════════════════════════════════════════════════════════════════════════
+
+LOOKUP CUSTOMER BY VAT
+──────────────────────
+1. Enter VAT number in "ΑΦΜ" field
+2. Click "Αναζήτηση" (Search)
+3. Customer details auto-fill from GSIS database
+
+CANCEL AN INVOICE
+─────────────────
+1. Click "Ιστορικό" (History)
+2. Find the invoice
+3. Click "Ακύρωση" (Cancel)
+4. Confirm cancellation
+
+CHECK FOR UPDATES
+─────────────────
+1. Go to Settings ⚙️
+2. The app checks automatically on startup
+3. You'll see a notification if update available
+
+
+⚠️ TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════════
+
+App won't start?
+└─ Make sure Node.js is installed (node --version in Command Prompt)
+└─ Make sure backend service is running (INSTALL-BACKEND-SERVICE.bat)
+
+Backend service won't start?
+└─ Open Command Prompt as Administrator
+└─ Navigate to the folder
+└─ Run: node aade-backend-standalone.cjs
+
+GSIS lookup doesn't work?
+└─ Check GSIS username/password in Settings
+└─ Verify internet connection
+└─ Try a known VAT: 135210960
+
+Can't submit invoices?
+└─ Check AADE credentials (User ID + Subscription Key)
+└─ Click "Test Connection" to verify
+└─ Try "Προπαραγωγή" (Preproduction) environment first
+
+
+═══════════════════════════════════════════════════════════════════════════════
+🇬🇷 ΕΛΛΗΝΙΚΕΣ ΟΔΗΓΙΕΣ
+═══════════════════════════════════════════════════════════════════════════════
+
+📋 ΠΡΙΝ ΞΕΚΙΝΗΣΕΤΕ
+──────────────────
+✓ Έχετε εγκαταστήσει Node.js; Αν όχι → https://nodejs.org/ (LTS)
+✓ Έχετε τα credentials της ΑΑΔΕ myDATA;
+✓ Windows 10/11 συνιστάται
+
+🚀 ΕΓΚΑΤΑΣΤΑΣΗ ΣΕ 3 ΒΗΜΑΤΑ
+──────────────────────────
+
+ΒΗΜΑ 1: Ρύθμιση Backend (ΜΙΑ ΦΟΡΑ ΜΟΝΟ!)
+────────────────────────────────────────
+1. Δεξί κλικ "INSTALL-BACKEND-SERVICE.bat" 
+2. Επιλέξτε "Εκτέλεση ως διαχειριστής"
+3. Περιμένετε το μήνυμα "Setup complete!"
+⏱️ Διάρκεια: 2-3 λεπτά
+
+ΒΗΜΑ 2: Εκκίνηση Εφαρμογής
+──────────────────────────
+1. Διπλό κλικ "Italian Corner Invoice 1.0.0.exe"
+2. Η εφαρμογή ανοίγει σε νέο παράθυρο
+⏱️ Διάρκεια: 10-15 δευτερόλεπτα
+
+ΒΗΜΑ 3: Ρύθμιση Εφαρμογής (ΠΡΩΤΗ ΦΟΡΑ)
+───────────────────────────────────────
+1. Κάντε κλικ ⚙️ (Ρυθμίσεις - κάτω δεξιά)
+2. Συμπληρώστε:
+   ├─ Backend URL: http://localhost:3000
+   ├─ AADE User ID: (από myDATA Portal)
+   ├─ Subscription Key: (από myDATA Portal)
+   └─ Credentials GSIS: (προαιρετικά, για αναζήτηση ΑΦΜ)
+3. Κάντε κλικ "Έλεγχος σύνδεσης"
+4. Θα πρέπει να δείτε ✓ "Σύνδεση OK"
+
+✅ ΟΛΟΚΛΗΡΩΘΗΚΕ! Αρχίστε να δημιουργείτε τιμολόγια!
+
+
+📊 ΚΟΙΝΑ ΚΑΘΗΚΟΝΤΑ
+──────────────────
+
+ΑΝΑΖΗΤΗΣΗ ΠΕΛΑΤΗ ΜΕ ΑΦΜ
+──────────────────────
+1. Εισάγετε τον ΑΦΜ στο πεδίο "ΑΦΜ"
+2. Κάντε κλικ "Αναζήτηση"
+3. Τα στοιχεία του πελάτη συμπληρώνονται αυτόματα
+
+ΑΚΥΡΩΣΗ ΤΙΜΟΛΟΓΙΟΥ
+──────────────────
+1. Κάντε κλικ "Ιστορικό"
+2. Βρείτε το τιμολόγιο
+3. Κάντε κλικ "Ακύρωση"
+4. Επιβεβαιώστε την ακύρωση
+
+ΕΛΕΓΧΟΣ ΕΝΗΜΕΡΩΣΕΩΝ
+───────────────────
+1. Πάνε στις Ρυθμίσεις ⚙️
+2. Η εφαρμογή ελέγχει αυτόματα κατά την εκκίνηση
+3. Θα δείτε ειδοποίηση εάν υπάρχει διαθέσιμη ενημέρωση
+
+
+⚠️ ΑΝΤΙΜΕΤΩΠΙΣΗ ΠΡΟΒΛΗΜΑΤΩΝ
+────────────────────────────
+
+Η εφαρμογή δεν ξεκινά;
+└─ Σιγουρευτείτε ότι το Node.js είναι εγκατεστημένο
+└─ Σιγουρευτείτε ότι η υπηρεσία backend τρέχει
+
+Η υπηρεσία backend δεν ξεκινά;
+└─ Ανοίξτε Command Prompt ως διαχειριστής
+└─ Κάντε: node aade-backend-standalone.cjs
+
+Η αναζήτηση GSIS δεν λειτουργεί;
+└─ Ελέγξτε τα credentials GSIS στις ρυθμίσεις
+└─ Επαληθεύστε τη σύνδεση internet
+└─ Δοκιμάστε με γνωστό ΑΦΜ: 135210960
+
+Δεν μπορώ να υποβάλω τιμολόγια;
+└─ Ελέγξτε τα credentials AAΔΕ (User ID + Subscription Key)
+└─ Κάντε κλικ "Έλεγχος σύνδεσης"
+└─ Δοκιμάστε πρώτα "Προπαραγωγή"
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERSION v1.1.0 - ΝΕΑ ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ
+═══════════════════════════════════════════════════════════════════════════════
+✓ Αναζήτηση ΑΦΜ GSIS
+✓ Ακύρωση τιμολογίων
+✓ Αυτόματες ενημερώσεις
+✓ Βελτιωμένο Backend με SOAP/XML
+
+═══════════════════════════════════════════════════════════════════════════════

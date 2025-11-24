@@ -1,0 +1,183 @@
+================================================================================
+ITALIAN CORNER INVOICE APP v1.1.0 - INSTALLATION GUIDE
+================================================================================
+Date: November 24, 2025
+Version: 1.1.0 (UPDATED WITH GSIS LOOKUP, CANCEL INVOICE, AUTO-UPDATES)
+
+================================================================================
+REQUIREMENTS
+================================================================================
+✓ Windows 7 SP1 or later (Windows 10/11 recommended)
+✓ Node.js 18.0.0 or later (https://nodejs.org/)
+✓ 512 MB RAM minimum
+✓ 200 MB free disk space
+✓ Internet connection for AADE myDATA API (production)
+✓ GSIS credentials (optional, for VAT number lookup)
+
+================================================================================
+STEP 1: INSTALL NODE.JS (if not already installed)
+================================================================================
+1. Go to: https://nodejs.org/
+2. Download "LTS" version
+3. Run the installer and follow the default setup
+4. Restart your computer
+5. Verify installation: Open Command Prompt and type:
+   node --version
+   npm --version
+   (Both should show version numbers)
+
+================================================================================
+STEP 2: SET UP THE BACKEND SERVICE
+================================================================================
+THIS MUST BE DONE ONCE ON THE CUSTOMER'S COMPUTER!
+
+1. Extract all files from this delivery package to a folder (e.g., C:\Italian Corner Invoice)
+2. Right-click "INSTALL-BACKEND-SERVICE.bat" → Run as Administrator
+3. Wait for the script to complete (should see "Setup complete!" message)
+4. The backend service will now:
+   - Start automatically when the computer boots
+   - Listen on http://localhost:3000
+   - Support GSIS VAT lookup, Cancel Invoice, Auto-Updates
+
+IF THE SCRIPT FAILS:
+- Make sure Node.js is installed and in PATH
+- Run Command Prompt as Administrator
+- Navigate to the folder and run the script again
+
+================================================================================
+STEP 3: LAUNCH THE APPLICATION
+================================================================================
+There are 2 ways to run the app:
+
+OPTION A: Quick Start (Recommended)
+- Double-click: "Italian Corner Invoice 1.0.0.exe"
+- The app will launch immediately
+- Backend service will start in the background
+- The app will open in a window
+
+OPTION B: Setup/Install
+- Run: "Italian Corner Invoice Setup 1.1.0.exe"
+- This creates a Windows installer
+- Useful if you want to install multiple times or create shortcuts
+
+================================================================================
+STEP 4: CONFIGURE SETTINGS (First Time Only)
+================================================================================
+When the app opens:
+1. Go to Settings (bottom right panel)
+2. Fill in the required fields:
+   
+   BACKEND:
+   - Backend URL: http://localhost:3000 (or your server IP:3000)
+   - Environment: Select "Παραγωγή" (Production) for LIVE
+   
+   AADE CREDENTIALS:
+   - AADE User ID: Your AADE username from myDATA Portal
+   - Subscription Key: Your 32-char key from myDATA Portal
+   
+   GSIS CREDENTIALS (Optional, for VAT lookup):
+   - Username: Your GSIS username
+   - Password: Your GSIS password
+   
+3. Click "Έλεγχος σύνδεσης" (Test Connection) to verify
+
+================================================================================
+STEP 5: START CREATING INVOICES
+================================================================================
+1. Select a branch (π.χ. "Central" or "Kandavlos")
+2. Add customer details (name, VAT, address)
+3. Add invoice items/services
+4. Select payment method
+5. Click "Αποστολή" (Submit) to send to myDATA
+
+NEW FEATURES IN v1.1.0:
+✓ GSIS VAT Lookup: Auto-fill customer details from VAT number
+✓ Cancel Invoice: Cancel previously submitted invoices
+✓ Auto-Updates: Application checks for updates automatically
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+PROBLEM: "Backend not responding"
+SOLUTION:
+- Make sure backend service is running
+- Check if Node.js process is running: Ctrl+Shift+Esc → look for "node.exe"
+- Restart the backend: Run INSTALL-BACKEND-SERVICE.bat again
+- Check that port 3000 is not blocked by firewall
+
+PROBLEM: "GSIS lookup returns no results"
+SOLUTION:
+- Verify GSIS credentials in Settings
+- Check if VAT number is valid (should be 9 digits)
+- Confirm internet connection is available
+- Try with a known company VAT (e.g., "135210960")
+
+PROBLEM: "Connection test fails"
+SOLUTION:
+- Verify Backend URL is correct (http://localhost:3000)
+- Verify AADE User ID and Subscription Key
+- Check firewall settings (allow port 3000)
+- Restart the backend service
+
+PROBLEM: "Subscription Key error from myDATA"
+SOLUTION:
+- Copy the exact key from myDATA Portal (no extra spaces)
+- Make sure it's the full 32-character key
+- Verify you selected the correct environment (Production vs Preproduction)
+
+================================================================================
+SUPPORT & UPDATES
+================================================================================
+The application will automatically check for updates when it starts.
+If a new version is available, you will be notified in the Settings panel.
+
+To check for updates manually:
+1. Open the app
+2. Go to Settings → Backend Controls
+3. Click "Έλεγχος σύνδεσης" (Test Connection)
+
+GitHub Repository:
+https://github.com/theofylaktos99/s.e.g_myData-Invoice-App
+
+================================================================================
+UNINSTALLATION
+================================================================================
+To uninstall the application:
+1. Stop the backend service (if running): Ctrl+Alt+Del → Stop "node.exe"
+2. Delete the application folder
+3. Remove from Windows Startup: Delete "start-aade-backend.bat" from:
+   %APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup
+
+================================================================================
+VERSION HISTORY
+================================================================================
+v1.1.0 (Nov 24, 2025) - CURRENT
+- Added GSIS VAT number lookup with credentials
+- Added Cancel Invoice feature
+- Added Auto-Update mechanism
+- Updated to Electron for desktop app
+- Enhanced backend with SOAP/XML support
+
+v1.0.0 (Previous)
+- Basic myDATA invoice submission
+- Multi-branch support
+- PDF generation and preview
+
+================================================================================
+IMPORTANT NOTES
+================================================================================
+1. Keep your AADE credentials and GSIS credentials secure!
+2. The backend service runs as a local process on port 3000
+3. Your data is stored locally and encrypted
+4. Internet connection required only for submitting invoices
+5. Always test in "Προπαραγωγή" (Preproduction) environment first
+
+================================================================================
+CONTACT INFORMATION
+================================================================================
+For issues or questions, refer to the GitHub repository issues section.
+
+Thank you for using Italian Corner Invoice App!
+
+================================================================================
